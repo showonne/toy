@@ -14,8 +14,15 @@ class Watcher {
         Dep.target = null
         return value
     }
+    update(){
+        let oldValue = this.value,
+            value = this.get()
+        if(oldValue === value) return
+        this.cb.call(this.vm, value, oldValue)
+    }
     addDep(dep){
         if(!this.deps.hasOwnProperty(dep.uid)){
+            dep.addSub(this)
             this.deps[dep.uid] = dep
         }
     }

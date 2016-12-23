@@ -13,13 +13,15 @@ class Toy {
             vm._proxy(key)
         })
 
-        observe(this._data)
+        observe(vm._data)
 
         new Compiler(vm.$options.el, vm)
     }
     _proxy(key) {
         let vm = this
         Object.defineProperty(vm, key, {
+            configurable: false,
+            enumerable: true,
             get() {
                 return vm._data[key]
             },

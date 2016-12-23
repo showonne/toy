@@ -123,7 +123,13 @@ var Dep = function () {
         key: "addSub",
         value: function addSub(sub) {
             this.subs.push(sub);
-            sub.addDep();
+        }
+    }, {
+        key: "notify",
+        value: function notify() {
+            this.subs.forEach(function (sub) {
+                sub.update();
+            });
         }
     }]);
     return Dep;
@@ -168,8 +174,11 @@ var Observer = function () {
                     }
                     return value;
                 },
-                set: function set(newVal) {
-                    value = newVal;
+                set: function set(newValue) {
+                    if (newValue === value) return;
+                    value = newValue;
+                    observe(newValue);
+                    dep.notify();
                 }
             });
         }
@@ -197,9 +206,18 @@ var Watcher = function () {
             return value;
         }
     }, {
+        key: 'update',
+        value: function update() {
+            var oldValue = this.value,
+                value = this.get();
+            if (oldValue === value) return;
+            this.cb.call(this.vm, value, oldValue);
+        }
+    }, {
         key: 'addDep',
         value: function addDep(dep) {
             if (!this.deps.hasOwnProperty(dep.uid)) {
+                dep.addSub(this);
                 this.deps[dep.uid] = dep;
             }
         }
@@ -222,7 +240,7 @@ var Watcher = function () {
 var mustacheReg = /\{\{(.*)\}\}/;
 
 var updater = {
-    text: function text(node, vlaue) {
+    text: function text(node, value) {
         node.textContent = value === undefined ? '' : value;
     },
     html: function html(node, value) {
@@ -248,12 +266,23 @@ var compileUtil = {
     html: function html(node, vm, expression) {
         this.bind(node, vm, expression, 'html');
     },
-    model: function model(node, vm, expression) {},
+    model: function model(node, vm, expression) {
+        this.bind(node, vm, expression, 'model');
+        var self = this;
+        var value = this._getVmVal(vm, expression);
+        node.addEventListener('input', function (e) {
+            var newValue = e.target.value;
+            if (newValue === value) return;
+            self._setVmVal(vm, expression, newValue);
+            //???
+            value = newValue;
+        });
+    },
     eventHandle: function eventHandle(node, vm, expression, directive) {
         var eventType = directive.split(':')[1];
         var fn = vm.$options.methods && vm.$options.methods[expression];
         if (eventType && fn) {
-            node.addEventListener(eventType, fn, false);
+            node.addEventListener(eventType, fn.bind(vm), false);
         }
     },
     _getVmVal: function _getVmVal(vm, expression) {
@@ -284,7 +313,7 @@ var Compiler = function () {
         var _el = this.isElement(el) ? el : document.querySelector(el);
         if (_el) {
             var _fragment = this.node2Fragment(_el);
-            this.compileFragment(_fragment);
+            this.compileElement(_fragment);
             _el.appendChild(_fragment);
         }
     }
@@ -293,6 +322,11 @@ var Compiler = function () {
         key: 'isElement',
         value: function isElement(node) {
             return node.nodeType === 1;
+        }
+    }, {
+        key: 'isTextNode',
+        value: function isTextNode(node) {
+            return node.nodeType === 3;
         }
     }, {
         key: 'node2Fragment',
@@ -305,22 +339,26 @@ var Compiler = function () {
             return fragment;
         }
     }, {
-        key: 'compileFragment',
-        value: function compileFragment(fragment) {
+        key: 'compileElement',
+        value: function compileElement(el) {
             var self = this;
-            var childNodes = fragment.childNodes;
+            var childNodes = el.childNodes;
+
             Array.prototype.slice.call(childNodes).forEach(function (node) {
                 var text = node.textContent;
                 if (self.isElement(node)) {
-                    self.compileElement(node);
+                    self.compile(node);
                 } else if (self.isTextNode && mustacheReg.test(text)) {
                     self.compileText(node, RegExp.$1);
+                }
+                if (node.childNodes && node.childNodes.length) {
+                    self.compileElement(node);
                 }
             });
         }
     }, {
-        key: 'compileElement',
-        value: function compileElement(node) {
+        key: 'compile',
+        value: function compile(node) {
             var self = this;
             var nodeAttrs = node.attributes;
             Array.prototype.slice.call(nodeAttrs).forEach(function (attr) {
@@ -334,6 +372,11 @@ var Compiler = function () {
                     }
                 }
             });
+        }
+    }, {
+        key: 'compileText',
+        value: function compileText(node, exp) {
+            compileUtil.text(node, this.$vm, exp);
         }
     }, {
         key: 'isDirective',
@@ -364,7 +407,7 @@ var Toy = function () {
             vm._proxy(key);
         });
 
-        observe(this._data);
+        observe(vm._data);
 
         new Compiler(vm.$options.el, vm);
     }
@@ -374,6 +417,8 @@ var Toy = function () {
         value: function _proxy(key) {
             var vm = this;
             Object.defineProperty(vm, key, {
+                configurable: false,
+                enumerable: true,
                 get: function get() {
                     return vm._data[key];
                 },

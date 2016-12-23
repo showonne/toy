@@ -7,7 +7,11 @@ class Dep {
     }
     addSub(sub){
         this.subs.push(sub)
-        sub.addDep()
+    }
+    notify(){
+        this.subs.forEach(sub => {
+            sub.update()
+        })
     }
 
 }

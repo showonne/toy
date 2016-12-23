@@ -30,8 +30,11 @@ class Observer {
                 }
                 return value
             },
-            set(newVal) {
-                value = newVal
+            set(newValue) {
+                if(newValue === value) return
+                value = newValue
+                observe(newValue)
+                dep.notify()
             }
         })
     }

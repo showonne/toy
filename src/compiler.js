@@ -3,7 +3,7 @@ import { Watcher } from './watcher.js'
 const mustacheReg = /\{\{(.*)\}\}/
 
 const updater = {
-    text(node, vlaue){
+    text(node, value){
         node.textContent = value === undefined ? '' : value
     },
     html(node, value){
@@ -31,13 +31,22 @@ const compileUtil = {
         this.bind(node, vm, expression, 'html')
     },
     model(node, vm, expression){
-
+        this.bind(node, vm, expression, 'model')
+        let self = this
+        let value = this._getVmVal(vm, expression)
+        node.addEventListener('input', e => {
+            let newValue = e.target.value
+            if(newValue === value) return
+            self._setVmVal(vm, expression, newValue)
+            //???
+            value = newValue
+        })
     },
     eventHandle(node, vm, expression, directive){
         let eventType = directive.split(':')[1]
         let fn = vm.$options.methods && vm.$options.methods[expression]
         if(eventType && fn){
-            node.addEventListener(eventType, fn, false)
+            node.addEventListener(eventType, fn.bind(vm), false)
         }
     },
     _getVmVal(vm, expression){
@@ -66,12 +75,15 @@ class Compiler {
         let _el = this.isElement(el) ? el : document.querySelector(el)
         if(_el){
             let _fragment = this.node2Fragment(_el)
-            this.compileFragment(_fragment)
+            this.compileElement(_fragment)
             _el.appendChild(_fragment)
         }
     }
     isElement(node) {
         return node.nodeType === 1
+    }
+    isTextNode(node) {
+        return node.nodeType === 3
     }
     node2Fragment(el){
         let fragment = document.createDocumentFragment()
@@ -81,19 +93,23 @@ class Compiler {
         }
         return fragment
     }
-    compileFragment(fragment){
+    compileElement(el){
         let self = this
-        let childNodes = fragment.childNodes
+        let childNodes = el.childNodes
+
         Array.prototype.slice.call(childNodes).forEach(node => {
             let text = node.textContent
             if(self.isElement(node)){
-                self.compileElement(node)
+                self.compile(node)
             }else if(self.isTextNode && mustacheReg.test(text)){
                 self.compileText(node, RegExp.$1)
             }
+            if(node.childNodes && node.childNodes.length){
+                self.compileElement(node)
+            }
         })
     }
-    compileElement(node){
+    compile(node){
         let self = this
         let nodeAttrs = node.attributes
         Array.prototype.slice.call(nodeAttrs).forEach(attr => {
@@ -107,6 +123,9 @@ class Compiler {
                 }
             }
         })
+    }
+    compileText(node, exp){
+        compileUtil.text(node, this.$vm, exp)
     }
     isDirective(attr){
         return /^v-.*/.test(attr)
