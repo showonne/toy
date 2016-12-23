@@ -1,4 +1,6 @@
-import {observe} from './observe.js'
+import { observe } from './observer.js'
+import { Compiler } from './compiler.js'
+import { Watcher } from './watcher.js'
 
 class Toy {
     constructor(options) {
@@ -11,7 +13,7 @@ class Toy {
             vm._proxy(key)
         })
 
-        ovserve(this._data)
+        observe(this._data)
 
         new Compiler(vm.$options.el, vm)
     }
@@ -25,6 +27,9 @@ class Toy {
                 vm._data[key] = newVal
             }
         })
+    }
+    $watch(exp, cb) {
+        new Watcher(this, exp, cb)
     }
 }
 

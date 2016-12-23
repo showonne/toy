@@ -1,0 +1,34 @@
+import { Dep } from './dep.js'
+
+class Watcher {
+    constructor(vm, exp, cb){
+        this.vm = vm
+        this.exp = exp
+        this.cb = cb
+        this.deps = {}
+        this.value = this.get()
+    }
+    get(){
+        Dep.target = this
+        let value = this.getVmValue()
+        Dep.target = null
+        return value
+    }
+    addDep(dep){
+        if(!this.deps.hasOwnProperty(dep.uid)){
+            this.deps[dep.uid] = dep
+        }
+    }
+    getVmValue(){
+        let keyPath = this.exp.split('.')
+        let val = this.vm._data
+
+        keyPath.forEach(key => {
+            val = val[key]
+        })
+
+        return val
+    }
+}
+
+export { Watcher }

@@ -4,6 +4,22 @@
   (global.Toy = factory());
 }(this, (function () { 'use strict';
 
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) {
+  return typeof obj;
+} : function (obj) {
+  return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj;
+};
+
+
+
+
+
+
+
+
+
+
+
 var classCallCheck = function (instance, Constructor) {
   if (!(instance instanceof Constructor)) {
     throw new TypeError("Cannot call a class as a function");
@@ -97,35 +113,63 @@ var set$1 = function set$1(object, property, value, receiver) {
   return value;
 };
 
+var uid = 0;
+
+var Dep = function () {
+    function Dep() {
+        classCallCheck(this, Dep);
+
+        this.uid = uid++;
+        this.subs = [];
+    }
+
+    createClass(Dep, [{
+        key: "addSub",
+        value: function addSub(sub) {
+            this.subs.push(sub);
+            sub.addDep();
+        }
+    }]);
+    return Dep;
+}();
+
+Dep.target = null;
+
+var observe = function observe(data) {
+    if (!data || (typeof data === 'undefined' ? 'undefined' : _typeof(data)) !== 'object') return;
+    new Observer(data);
+};
+
 var Observer = function () {
-    function Observer() {
+    function Observer(data) {
         classCallCheck(this, Observer);
+
+        this.data = data;
+        this.track(data);
     }
 
     createClass(Observer, [{
-        key: 'constrctor',
-        value: function constrctor(data) {
-            this.data = data;
-            this.track(data);
-        }
-    }, {
         key: 'track',
         value: function track(data) {
             var that = this;
             Object.keys(data).forEach(function (key) {
-                that.defineReactive(that.value, key, data[key]);
+                that.defineReactive(that.data, key, data[key]);
             });
         }
     }, {
         key: 'defineReactive',
         value: function defineReactive(target, key, value) {
+            var dep = new Dep();
 
-            ovserve(value);
+            observe(value);
 
             Object.defineProperty(target, key, {
                 configurable: false,
                 enumerable: true,
                 get: function get() {
+                    if (Dep.target) {
+                        Dep.target.addDep(dep);
+                    }
                     return value;
                 },
                 set: function set(newVal) {
@@ -135,6 +179,180 @@ var Observer = function () {
         }
     }]);
     return Observer;
+}();
+
+var Watcher = function () {
+    function Watcher(vm, exp, cb) {
+        classCallCheck(this, Watcher);
+
+        this.vm = vm;
+        this.exp = exp;
+        this.cb = cb;
+        this.deps = {};
+        this.value = this.get();
+    }
+
+    createClass(Watcher, [{
+        key: 'get',
+        value: function get() {
+            Dep.target = this;
+            var value = this.getVmValue();
+            Dep.target = null;
+            return value;
+        }
+    }, {
+        key: 'addDep',
+        value: function addDep(dep) {
+            if (!this.deps.hasOwnProperty(dep.uid)) {
+                this.deps[dep.uid] = dep;
+            }
+        }
+    }, {
+        key: 'getVmValue',
+        value: function getVmValue() {
+            var keyPath = this.exp.split('.');
+            var val = this.vm._data;
+
+            keyPath.forEach(function (key) {
+                val = val[key];
+            });
+
+            return val;
+        }
+    }]);
+    return Watcher;
+}();
+
+var mustacheReg = /\{\{(.*)\}\}/;
+
+var updater = {
+    text: function text(node, vlaue) {
+        node.textContent = value === undefined ? '' : value;
+    },
+    html: function html(node, value) {
+        node.innerHTML = value === undefined ? '' : value;
+    },
+    model: function model(node, value) {
+        node.value = value === undefined ? '' : value;
+    }
+};
+
+var compileUtil = {
+    bind: function bind(node, vm, expression, directive) {
+        var updateFn = updater[directive];
+        updateFn && updateFn(node, this._getVmVal(vm, expression));
+
+        new Watcher(vm, expression, function (value, oldValue) {
+            updateFn && updateFn(node, value, oldValue);
+        });
+    },
+    text: function text(node, vm, expression) {
+        this.bind(node, vm, expression, 'text');
+    },
+    html: function html(node, vm, expression) {
+        this.bind(node, vm, expression, 'html');
+    },
+    model: function model(node, vm, expression) {},
+    eventHandle: function eventHandle(node, vm, expression, directive) {
+        var eventType = directive.split(':')[1];
+        var fn = vm.$options.methods && vm.$options.methods[expression];
+        if (eventType && fn) {
+            node.addEventListener(eventType, fn, false);
+        }
+    },
+    _getVmVal: function _getVmVal(vm, expression) {
+        var keyPath = expression.split('.');
+        var val = vm._data;
+        keyPath.forEach(function (key) {
+            val = val[key];
+        });
+        return val;
+    },
+    _setVmVal: function _setVmVal(vm, expression, value) {
+        var keyPath = expression.split('.');
+        var val = vm._data;
+        keyPath.forEach(function (key, index) {
+            if (index < keyPath.length - 1) {
+                val = val[key];
+            }
+            val[key] = value;
+        });
+    }
+};
+
+var Compiler = function () {
+    function Compiler(el, vm) {
+        classCallCheck(this, Compiler);
+
+        this.$vm = vm;
+        var _el = this.isElement(el) ? el : document.querySelector(el);
+        if (_el) {
+            var _fragment = this.node2Fragment(_el);
+            this.compileFragment(_fragment);
+            _el.appendChild(_fragment);
+        }
+    }
+
+    createClass(Compiler, [{
+        key: 'isElement',
+        value: function isElement(node) {
+            return node.nodeType === 1;
+        }
+    }, {
+        key: 'node2Fragment',
+        value: function node2Fragment(el) {
+            var fragment = document.createDocumentFragment();
+            var child = void 0;
+            while (child = el.firstChild) {
+                fragment.appendChild(child);
+            }
+            return fragment;
+        }
+    }, {
+        key: 'compileFragment',
+        value: function compileFragment(fragment) {
+            var self = this;
+            var childNodes = fragment.childNodes;
+            Array.prototype.slice.call(childNodes).forEach(function (node) {
+                var text = node.textContent;
+                if (self.isElement(node)) {
+                    self.compileElement(node);
+                } else if (self.isTextNode && mustacheReg.test(text)) {
+                    self.compileText(node, RegExp.$1);
+                }
+            });
+        }
+    }, {
+        key: 'compileElement',
+        value: function compileElement(node) {
+            var self = this;
+            var nodeAttrs = node.attributes;
+            Array.prototype.slice.call(nodeAttrs).forEach(function (attr) {
+                if (self.isDirective(attr.name)) {
+                    var expression = attr.value;
+                    var directive = attr.name.substring(2);
+                    if (self.isEventDirective(directive)) {
+                        compileUtil.eventHandle(node, self.$vm, expression, directive);
+                    } else {
+                        compileUtil[directive] && compileUtil[directive](node, self.$vm, expression);
+                    }
+                }
+            });
+        }
+    }, {
+        key: 'isDirective',
+        value: function isDirective(attr) {
+            return (/^v-.*/.test(attr)
+            );
+        }
+    }, {
+        key: 'isEventDirective',
+        value: function isEventDirective(attr) {
+            return (/^on.*/.test(attr)
+            );
+        }
+    }]);
+    return Compiler;
 }();
 
 var Toy = function () {
@@ -150,7 +368,7 @@ var Toy = function () {
             vm._proxy(key);
         });
 
-        ovserve(this._data);
+        observe(this._data);
 
         new Compiler(vm.$options.el, vm);
     }
@@ -167,6 +385,11 @@ var Toy = function () {
                     vm._data[key] = newVal;
                 }
             });
+        }
+    }, {
+        key: '$watch',
+        value: function $watch(exp, cb) {
+            new Watcher(this, exp, cb);
         }
     }]);
     return Toy;

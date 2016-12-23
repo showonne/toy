@@ -13,7 +13,7 @@ class Observer {
     track(data) {
         let that = this
         Object.keys(data).forEach(key => {
-            that.defineReactive(that.value, key, data[key])
+            that.defineReactive(that.data, key, data[key])
         })
     }
     defineReactive(target, key, value) {
@@ -25,6 +25,9 @@ class Observer {
             configurable: false,
             enumerable: true,
             get() {
+                if(Dep.target){
+                    Dep.target.addDep(dep)
+                }
                 return value
             },
             set(newVal) {
