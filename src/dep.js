@@ -13,7 +13,6 @@ class Dep {
             sub.update()
         })
     }
-
 }
 
 Dep.target = null

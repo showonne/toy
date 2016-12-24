@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>MVVM</title>
+    <title>example</title>
 </head>
 <body>
 
@@ -17,7 +17,7 @@
     <button v-on:click="clickBtn">change model</button>
 </div>
 
-<script src="./dest/toy.umd.js"></script>
+<script src="../dest/toy.umd.js"></script>
 <script>
     var vm = new Toy({
         el: '#mvvm-app',
@@ -32,15 +32,15 @@
 
         methods: {
             clickBtn: function(e) {
-                var randomStrArr = ['childOne', 'childTwo', 'childThree'];
-                this.child.someStr = randomStrArr[parseInt(Math.random() * 3)];
+                var randomStrArr = ['childOne', 'childTwo', 'childThree']
+                this.child.someStr = randomStrArr[parseInt(Math.random() * 3)]
             }
         }
-    });
+    })
 
     vm.$watch('child.someStr', function() {
-        console.log(arguments);
-    });
+        console.log(arguments)
+    })
 </script>
 
 </body>

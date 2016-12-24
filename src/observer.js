@@ -6,17 +6,16 @@ const observe = data => {
 }
 
 class Observer {
-    constructor(data) {
-        this.data = data
-        this.track(data)
+    constructor(data){
+        this.walk(data)
     }
-    track(data) {
-        let that = this
+    walk(data){
+        let self = this
         Object.keys(data).forEach(key => {
-            that.defineReactive(that.data, key, data[key])
+            self.defineReactive(data, key, data[key])
         })
     }
-    defineReactive(target, key, value) {
+    defineReactive(target, key, value){
         let dep = new Dep()
         
         observe(value)
@@ -24,13 +23,13 @@ class Observer {
         Object.defineProperty(target, key, {
             configurable: false,
             enumerable: true,
-            get() {
+            get(){
                 if(Dep.target){
                     Dep.target.addDep(dep)
                 }
                 return value
             },
-            set(newValue) {
+            set(newValue){
                 if(newValue === value) return
                 value = newValue
                 observe(newValue)
@@ -39,8 +38,5 @@ class Observer {
         })
     }
 }
-
-
-
 
 export { observe }
