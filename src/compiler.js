@@ -12,53 +12,56 @@ const updater = {
     model(node, value){
         node.value = value === undefined ? '' : value
     }
-
 }
 
 const compileUtil = {
-    bind(node, vm, expression, directive){
+    bind(node, vm, exp, directive){
         let updateFn = updater[directive]
-        updateFn && updateFn(node, this._getVmVal(vm, expression))
 
-        new Watcher(vm, expression, (value, oldValue) => {
+        //initial compile
+        updateFn && updateFn(node, this._getVmVal(vm, exp))
+
+        new Watcher(vm, exp, (value, oldValue) => {
             updateFn && updateFn(node, value, oldValue)
         })
     },
-    text(node, vm, expression){
-        this.bind(node, vm, expression, 'text')
+    text(node, vm, exp){
+        this.bind(node, vm, exp, 'text')
     },
-    html(node, vm, expression){
-        this.bind(node, vm, expression, 'html')
+    html(node, vm, exp){
+        this.bind(node, vm, exp, 'html')
     },
-    model(node, vm, expression){
-        this.bind(node, vm, expression, 'model')
+    model(node, vm, exp){
+        this.bind(node, vm, exp, 'model')
         let self = this
-        let value = this._getVmVal(vm, expression)
+        //initial value
+        let value = this._getVmVal(vm, exp)
+
         node.addEventListener('input', e => {
             let newValue = e.target.value
             if(newValue === value) return
-            self._setVmVal(vm, expression, newValue)
-            //???
+            self._setVmVal(vm, exp, newValue)
+            //update old value
             value = newValue
         })
     },
-    eventHandle(node, vm, expression, directive){
+    eventHandle(node, vm, exp, directive){
         let eventType = directive.split(':')[1]
-        let fn = vm.$options.methods && vm.$options.methods[expression]
+        let fn = vm.$options.methods && vm.$options.methods[exp]
         if(eventType && fn){
             node.addEventListener(eventType, fn.bind(vm), false)
         }
     },
-    _getVmVal(vm, expression){
-        let keyPath = expression.split('.')
+    _getVmVal(vm, exp){
+        let keyPath = exp.split('.')
         let val = vm._data
         keyPath.forEach(key => {
             val = val[key]
         })
         return val
     },
-    _setVmVal(vm, expression, value){
-        let keyPath = expression.split('.')
+    _setVmVal(vm, exp, value){
+        let keyPath = exp.split('.')
         let val = vm._data
         keyPath.forEach((key, index) => {
             if(index < keyPath.length - 1){
@@ -114,12 +117,12 @@ class Compiler {
         let nodeAttrs = node.attributes
         Array.prototype.slice.call(nodeAttrs).forEach(attr => {
             if(self.isDirective(attr.name)){
-                let expression = attr.value
+                let exp = attr.value
                 let directive = attr.name.substring(2)
                 if(self.isEventDirective(directive)){
-                    compileUtil.eventHandle(node, self.$vm, expression, directive)
+                    compileUtil.eventHandle(node, self.$vm, exp, directive)
                 }else{
-                    compileUtil[directive] && compileUtil[directive](node, self.$vm, expression)
+                    compileUtil[directive] && compileUtil[directive](node, self.$vm, exp)
                 }
             }
         })

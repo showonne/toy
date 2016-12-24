@@ -250,49 +250,53 @@ var updater = {
 };
 
 var compileUtil = {
-    bind: function bind(node, vm, expression, directive) {
+    bind: function bind(node, vm, exp, directive) {
         var updateFn = updater[directive];
-        updateFn && updateFn(node, this._getVmVal(vm, expression));
 
-        new Watcher(vm, expression, function (value, oldValue) {
+        //initial compile
+        updateFn && updateFn(node, this._getVmVal(vm, exp));
+
+        new Watcher(vm, exp, function (value, oldValue) {
             updateFn && updateFn(node, value, oldValue);
         });
     },
-    text: function text(node, vm, expression) {
-        this.bind(node, vm, expression, 'text');
+    text: function text(node, vm, exp) {
+        this.bind(node, vm, exp, 'text');
     },
-    html: function html(node, vm, expression) {
-        this.bind(node, vm, expression, 'html');
+    html: function html(node, vm, exp) {
+        this.bind(node, vm, exp, 'html');
     },
-    model: function model(node, vm, expression) {
-        this.bind(node, vm, expression, 'model');
+    model: function model(node, vm, exp) {
+        this.bind(node, vm, exp, 'model');
         var self = this;
-        var value = this._getVmVal(vm, expression);
+        //initial value
+        var value = this._getVmVal(vm, exp);
+
         node.addEventListener('input', function (e) {
             var newValue = e.target.value;
             if (newValue === value) return;
-            self._setVmVal(vm, expression, newValue);
-            //???
+            self._setVmVal(vm, exp, newValue);
+            //update old value
             value = newValue;
         });
     },
-    eventHandle: function eventHandle(node, vm, expression, directive) {
+    eventHandle: function eventHandle(node, vm, exp, directive) {
         var eventType = directive.split(':')[1];
-        var fn = vm.$options.methods && vm.$options.methods[expression];
+        var fn = vm.$options.methods && vm.$options.methods[exp];
         if (eventType && fn) {
             node.addEventListener(eventType, fn.bind(vm), false);
         }
     },
-    _getVmVal: function _getVmVal(vm, expression) {
-        var keyPath = expression.split('.');
+    _getVmVal: function _getVmVal(vm, exp) {
+        var keyPath = exp.split('.');
         var val = vm._data;
         keyPath.forEach(function (key) {
             val = val[key];
         });
         return val;
     },
-    _setVmVal: function _setVmVal(vm, expression, value) {
-        var keyPath = expression.split('.');
+    _setVmVal: function _setVmVal(vm, exp, value) {
+        var keyPath = exp.split('.');
         var val = vm._data;
         keyPath.forEach(function (key, index) {
             if (index < keyPath.length - 1) {
@@ -361,12 +365,12 @@ var Compiler = function () {
             var nodeAttrs = node.attributes;
             Array.prototype.slice.call(nodeAttrs).forEach(function (attr) {
                 if (self.isDirective(attr.name)) {
-                    var expression = attr.value;
+                    var exp = attr.value;
                     var directive = attr.name.substring(2);
                     if (self.isEventDirective(directive)) {
-                        compileUtil.eventHandle(node, self.$vm, expression, directive);
+                        compileUtil.eventHandle(node, self.$vm, exp, directive);
                     } else {
-                        compileUtil[directive] && compileUtil[directive](node, self.$vm, expression);
+                        compileUtil[directive] && compileUtil[directive](node, self.$vm, exp);
                     }
                 }
             });

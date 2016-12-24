@@ -13,7 +13,7 @@
         {{someStr}}
         <span v-text="child.someStr"></span>
     </p>
-    <p v-html="child.htmlStr"></p>
+    <p v-html="htmlStr"></p>
     <button v-on:click="clickBtn">change model</button>
 </div>
 
@@ -24,7 +24,7 @@
         data: {
             someStr: 'hello ',
             className: 'btn',
-            htmlStr: '<span style="color: #f00;">red</span>',
+            htmlStr: '<span style="color: red;">red</span>',
             child: {
                 someStr: 'World !'
             }
